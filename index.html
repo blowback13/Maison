@@ -43,6 +43,7 @@
   a.btn.heat { background: var(--heat); border-color: var(--heat); color: #1A0D05; }
   a.btn svg { flex: none; }
   .note { font-size: 13px; color: var(--muted); margin: 0; line-height: 1.4; }
+  .etat { margin: 0; padding: 12px 14px; border-radius: 14px; background: var(--bg); font-size: 15px; font-weight: 600; line-height: 1.4; }
 </style>
 </head>
 <body>
@@ -81,17 +82,53 @@
   <div class="row">
     <a class="btn" href="shortcuts://run-shortcut?name=Chauffage%20%C3%A9tat">Voir l’état</a>
   </div>
+  <p id="etat" class="etat" hidden></p>
   <p class="note">Chaque bouton lance un raccourci de l’app Raccourcis. La première fois, iOS demande de confirmer l’ouverture.</p>
 </section>
 
 <script>
   // Après l'exécution d'un raccourci, Raccourcis rouvre automatiquement cette page.
   (function () {
-    var back = encodeURIComponent(location.href.split('#')[0]);
+    var back = encodeURIComponent(location.origin + location.pathname);
     document.querySelectorAll('a[href^="shortcuts://run-shortcut"]').forEach(function (a) {
       a.href = a.getAttribute('href').replace('shortcuts://run-shortcut', 'shortcuts://x-callback-url/run-shortcut')
         + '&x-success=' + back + '&x-cancel=' + back + '&x-error=' + back;
     });
+  })();
+</script>
+<script>
+  // Affiche l'état du chauffage renvoyé par le raccourci « Chauffage état ».
+  (function () {
+    var el = document.getElementById('etat');
+    var modes = { '0': 'Auto', '1': 'Auto', '2': 'Déshumidification', '3': 'Froid', '4': 'Chauffage', '6': 'Ventilation', '7': 'Auto' };
+    function show(txt, when) {
+      el.hidden = false;
+      el.textContent = txt + (when ? ' · lu à ' + when : '');
+    }
+    var raw = new URLSearchParams(location.search).get('result');
+    if (raw) {
+      var d = {};
+      raw.split(',').forEach(function (kv) {
+        var i = kv.indexOf('=');
+        if (i > 0) d[kv.slice(0, i).trim()] = kv.slice(i + 1).trim();
+      });
+      if (d.ret === 'OK') {
+        var when = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+        var txt = d.pow === '1'
+          ? 'En marche · ' + (modes[d.mode] || 'Mode ' + d.mode) + ' · consigne ' + d.stemp + ' °C'
+          : 'À l’arrêt · dernière consigne ' + d.stemp + ' °C';
+        try { localStorage.setItem('etat', JSON.stringify({ txt: txt, when: when })); } catch (e) {}
+        show(txt, when);
+      } else {
+        show('Réponse inattendue : ' + raw.slice(0, 80));
+      }
+      history.replaceState(null, '', location.pathname);
+    } else {
+      try {
+        var s = JSON.parse(localStorage.getItem('etat'));
+        if (s) show(s.txt, s.when);
+      } catch (e) {}
+    }
   })();
 </script>
 </body>
