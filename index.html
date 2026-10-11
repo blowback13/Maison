@@ -24,11 +24,22 @@
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
     min-height: 100vh;
     padding: calc(28px + env(safe-area-inset-top)) 20px calc(24px + env(safe-area-inset-bottom));
-    display: flex; flex-direction: column; gap: 16px;
   }
+  .page { display: flex; flex-direction: column; gap: 16px; }
+  [hidden] { display: none !important; }
   header { display: flex; flex-direction: column; gap: 4px; margin-bottom: 4px; }
   h1 { margin: 0; font-size: 34px; font-weight: 800; letter-spacing: -0.02em; }
   header p { margin: 0; font-size: 15px; color: var(--muted); }
+  .back { align-self: flex-start; display: inline-flex; align-items: center; gap: 4px; min-height: 44px; padding: 0; border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 16px; font-weight: 600; }
+
+  .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .card { display: flex; flex-direction: column; gap: 12px; min-height: 120px; padding: 16px; border-radius: 20px; border: 0; background: var(--card); color: var(--text); font: inherit; text-align: left; }
+  .card:active { transform: scale(0.97); }
+  .card .nom { font-size: 18px; font-weight: 700; }
+  .card .ligne { font-size: 14px; color: #C3CCD3; line-height: 1.35; }
+  .card .ligne.heat { color: var(--heat); }
+  .card .ligne.vide { color: var(--muted); }
+
   section { background: var(--card); border-radius: 20px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
   h2 { margin: 0; font-size: 13px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
   .row { display: flex; gap: 10px; }
@@ -47,46 +58,96 @@
   a.btn.refresh { flex: none; width: 56px; min-height: 72px; padding: 0; }
   .note { font-size: 13px; color: var(--muted); margin: 0; line-height: 1.4; }
   .etat { margin: 0; padding: 12px 14px; border-radius: 14px; background: var(--bg); font-size: 15px; font-weight: 600; line-height: 1.4; }
+  .seg, .modes { display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip { flex: 1 1 auto; min-height: 44px; padding: 0 12px; border-radius: 14px; border: 1px solid var(--line); background: transparent; color: var(--text); font: inherit; font-size: 15px; font-weight: 700; }
+  .chip[aria-pressed="true"] { background: var(--heat); border-color: var(--heat); color: #1A0D05; }
+  .seg .chip { flex: 1; }
+  .stepper { display: flex; align-items: center; justify-content: space-between; }
+  .round { width: 56px; height: 56px; border-radius: 28px; border: 1px solid var(--line); background: transparent; color: var(--text); font-size: 28px; font-weight: 600; line-height: 1; }
+  .round:active { transform: scale(0.94); }
+  .sub { margin: 4px 0 -4px; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  .cons { font-size: 40px; font-weight: 800; letter-spacing: -0.02em; color: var(--heat); }
 </style>
 </head>
 <body>
 
-<header>
-  <h1>Salon</h1>
-  <p>Volet et chauffage</p>
-</header>
+<!-- ACCUEIL : la liste des pièces -->
+<div id="accueil" class="page">
+  <header>
+    <h1>Maison</h1>
+    <p id="date"></p>
+  </header>
+  <div id="grille" class="grid"></div>
+</div>
 
-<section aria-labelledby="t-volet">
-  <h2 id="t-volet">Volet</h2>
-  <div class="row">
-    <a id="btn-volet" class="btn primary big" href="shortcuts://run-shortcut?name=Volet%20salon">
-      <span id="volet-titre">Volet salon</span>
-      <span id="volet-sous" class="sous">Toucher pour ouvrir ou fermer</span>
-    </a>
-    <a class="btn refresh" aria-label="Actualiser l’état du volet" href="shortcuts://run-shortcut?name=%C3%89tat%20volet%20salon">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg>
-    </a>
-  </div>
-</section>
+<!-- PAGE D'UNE PIÈCE -->
+<div id="piece" class="page" hidden>
+  <header>
+    <button type="button" id="retour" class="back">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+      Maison
+    </button>
+    <h1 id="piece-nom">Salon</h1>
+  </header>
 
-<section aria-labelledby="t-chauffage">
-  <h2 id="t-chauffage">Chauffage</h2>
-  <div class="row">
-    <a class="btn heat" href="shortcuts://run-shortcut?name=Chauffage%2021">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 14.8V5a2 2 0 0 0-4 0v9.8a4 4 0 1 0 4 0z"/></svg>
-      21 °C
-    </a>
-    <a class="btn" href="shortcuts://run-shortcut?name=Chauffage%20arr%C3%AAt">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v9"/><path d="M6.3 7.5a8 8 0 1 0 11.4 0"/></svg>
-      Arrêt
-    </a>
-  </div>
-  <div class="row">
-    <a class="btn" href="shortcuts://run-shortcut?name=Chauffage%20%C3%A9tat">Voir l’état</a>
-  </div>
-  <p id="etat" class="etat" hidden></p>
-  <p class="note">Chaque bouton lance un raccourci de l’app Raccourcis. La première fois, iOS demande de confirmer l’ouverture.</p>
-</section>
+  <section id="sec-volet" aria-labelledby="t-volet">
+    <h2 id="t-volet">Volet</h2>
+    <div class="row">
+      <a id="btn-volet" class="btn primary big" href="shortcuts://run-shortcut?name=Volet%20salon">
+        <span id="volet-titre">Volet salon</span>
+        <span id="volet-sous" class="sous">Toucher pour ouvrir ou fermer</span>
+      </a>
+      <a class="btn refresh" aria-label="Actualiser l’état du volet" href="shortcuts://run-shortcut?name=%C3%89tat%20volet%20salon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg>
+      </a>
+    </div>
+  </section>
+
+  <section id="sec-chauffage" aria-labelledby="t-chauffage">
+    <h2 id="t-chauffage">Chauffage</h2>
+    <div class="seg">
+      <button type="button" class="chip" data-pow="1">En marche</button>
+      <button type="button" class="chip" data-pow="0">Arrêt</button>
+    </div>
+    <div class="stepper">
+      <button type="button" class="round" id="moins" aria-label="Baisser la consigne">−</button>
+      <span id="cons-val" class="cons">21,0 °C</span>
+      <button type="button" class="round" id="plus" aria-label="Augmenter la consigne">+</button>
+    </div>
+    <div class="modes">
+      <button type="button" class="chip" data-mode="4">Chauffage</button>
+      <button type="button" class="chip" data-mode="3">Froid</button>
+      <button type="button" class="chip" data-mode="0">Auto</button>
+      <button type="button" class="chip" data-mode="6">Ventilation</button>
+      <button type="button" class="chip" data-mode="2">Déshum.</button>
+    </div>
+    <p class="sub">Ventilation</p>
+    <div class="modes">
+      <button type="button" class="chip" data-rate="A">Auto</button>
+      <button type="button" class="chip" data-rate="B">Silence</button>
+      <button type="button" class="chip" data-rate="3">1</button>
+      <button type="button" class="chip" data-rate="4">2</button>
+      <button type="button" class="chip" data-rate="5">3</button>
+      <button type="button" class="chip" data-rate="6">4</button>
+      <button type="button" class="chip" data-rate="7">5</button>
+    </div>
+    <p class="sub">Flux d’air (rotation)</p>
+    <div class="seg">
+      <button type="button" class="chip" data-dir="1">Vertical</button>
+      <button type="button" class="chip" data-dir="2">Horizontal</button>
+    </div>
+    <a id="appliquer" class="btn heat" href="#">Appliquer au Daikin</a>
+    <div class="row">
+      <a id="lire" class="btn" href="#">Voir l’état</a>
+    </div>
+    <p id="etat" class="etat" hidden></p>
+    <p class="note">Choisis la marche, la consigne et le mode, puis touche « Appliquer ». Rien n’est envoyé avant.</p>
+  </section>
+
+  <section id="sec-vide">
+    <p class="note">Rien n’est encore configuré pour cette pièce.</p>
+  </section>
+</div>
 
 <script>
   // Après l'exécution d'un raccourci, Raccourcis rouvre automatiquement cette page.
@@ -99,51 +160,23 @@
   })();
 </script>
 <script>
-  // Affiche l'état du volet et du chauffage renvoyés par les raccourcis « État volet salon » et « Chauffage état ».
+  // Lit le résultat renvoyé par un raccourci (état du volet ou du chauffage de la pièce ouverte en dernier).
   (function () {
+    var rates = { 'A': 'auto', 'B': 'silence', '3': '1', '4': '2', '5': '3', '6': '4', '7': '5' };
     var modes = { '0': 'Auto', '1': 'Auto', '2': 'Déshumidification', '3': 'Froid', '4': 'Chauffage', '6': 'Ventilation', '7': 'Auto' };
-
-    function showVolet(n, when) {
-      var t = document.getElementById('volet-titre');
-      var s = document.getElementById('volet-sous');
-      if (!t || !s) return;
-      var ouvert = n >= 50;
-      t.textContent = n >= 99 ? 'Volet ouvert' : n <= 1 ? 'Volet fermé' : 'Volet ouvert à ' + Math.round(n) + ' %';
-      s.textContent = 'Toucher pour ' + (ouvert ? 'fermer' : 'ouvrir') + (when ? ' · lu à ' + when : '');
-    }
-    function show(id, txt, when) {
-      var el = document.getElementById(id);
-      if (!el) return;
-      el.hidden = false;
-      el.textContent = txt + (when ? ' · lu à ' + when : '');
-    }
-    function save(key, txt, when) {
-      try { localStorage.setItem(key, JSON.stringify({ txt: txt, when: when })); } catch (e) {}
-    }
-    function restore(key, id) {
-      try {
-        var s = JSON.parse(localStorage.getItem(key));
-        if (s) show(id, s.txt, s.when);
-      } catch (e) {}
-    }
-
-    // On réaffiche d'abord les derniers états connus.
-    try {
-      var sv = JSON.parse(localStorage.getItem('etatVolet'));
-      if (sv && typeof sv.n === 'number') showVolet(sv.n, sv.when);
-    } catch (e) {}
-    restore('etat', 'etat');
+    var piece = 'salon';
+    try { piece = localStorage.getItem('piece') || 'salon'; } catch (e) {}
 
     var raw = new URLSearchParams(location.search).get('result');
     if (!raw) return;
     raw = raw.trim();
     var when = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 
+    function put(key, obj) { try { localStorage.setItem(key, JSON.stringify(obj)); } catch (e) {} }
+
     if (/^-?\d+([.,]\d+)?$/.test(raw)) {
       // Résultat du volet : position actuelle (100 = ouvert, 0 = fermé).
-      var n = parseFloat(raw.replace(',', '.'));
-      try { localStorage.setItem('etatVolet', JSON.stringify({ n: n, when: when })); } catch (e) {}
-      showVolet(n, when);
+      put('etatVolet', { n: parseFloat(raw.replace(',', '.')), when: when });
     } else {
       // Résultat du chauffage : texte du Daikin (ret=OK,pow=...,mode=...,stemp=...).
       var d = {};
@@ -151,17 +184,171 @@
         var i = kv.indexOf('=');
         if (i > 0) d[kv.slice(0, i).trim()] = kv.slice(i + 1).trim();
       });
-      if (d.ret === 'OK') {
-        var txtC = d.pow === '1'
-          ? 'En marche · ' + (modes[d.mode] || 'Mode ' + d.mode) + ' · consigne ' + d.stemp + ' °C'
+      if (d.ret === 'OK' && d.pow === undefined) {
+        // Réponse à un réglage envoyé (ret=OK,adv=) : ce n'est pas un état.
+        put('etat:' + piece, { txt: 'Réglage envoyé', when: when, envoi: true });
+      } else if (d.ret === 'OK') {
+        var st = parseFloat(d.stemp);
+        var txt = d.pow === '1'
+          ? 'En marche · ' + (modes[d.mode] || 'Mode ' + d.mode) + ' · consigne ' + d.stemp + ' °C' + (rates[d.f_rate] ? ' · ventil. ' + rates[d.f_rate] : '')
           : 'À l’arrêt · dernière consigne ' + d.stemp + ' °C';
-        save('etat', txtC, when);
-        show('etat', txtC, when);
+        put('cmd:' + piece, { pow: d.pow === '1' ? 1 : 0, mode: d.mode, stemp: isNaN(st) ? 21 : st, rate: d.f_rate || 'A', dir: parseInt(d.f_dir, 10) || 0 });
+        put('etat:' + piece, { txt: txt, when: when });
+        put('court:' + piece, d.pow === '1' ? 'En marche · ' + (isNaN(st) ? '' : st.toFixed(1).replace('.', ',') + ' °C') : 'À l’arrêt');
       } else {
-        show('etat', 'Réponse inattendue : ' + raw.slice(0, 80));
+        put('etat:' + piece, { txt: 'Réponse inattendue : ' + raw.slice(0, 80), when: when });
       }
     }
     history.replaceState(null, '', location.pathname);
+  })();
+</script>
+<script>
+  // Interface : accueil des pièces + page de chaque pièce.
+  (function () {
+    // Une entrée par pièce. ip = adresse du Daikin, volet = volet géré par raccourci.
+    var PIECES = {
+      salon:   { nom: 'Salon',   ip: '192.168.1.177', volet: true },
+      chambre: { nom: 'Chambre', ip: '192.168.1.84' },
+      bureau:  { nom: 'Bureau',  ip: '192.168.1.38' },
+      cellier: { nom: 'Cellier' },
+      couloir: { nom: 'Couloir' },
+      entree:  { nom: 'Entrée' }
+    };
+    var ORDRE = ['salon', 'chambre', 'bureau', 'cellier', 'couloir', 'entree'];
+    var back = encodeURIComponent(location.origin + location.pathname);
+    var piece = 'salon';
+    try { var p0 = localStorage.getItem('piece'); if (p0 && PIECES[p0]) piece = p0; } catch (e) {}
+    var cmd;
+    function $(id) { return document.getElementById(id); }
+    function get(key) { try { return JSON.parse(localStorage.getItem(key)); } catch (e) { return null; } }
+
+    /* ---- Accueil ---- */
+    function ligne(txt, cls) {
+      var d = document.createElement('div');
+      d.className = 'ligne' + (cls ? ' ' + cls : '');
+      d.textContent = txt;
+      return d;
+    }
+    function accueil() {
+      $('date').textContent = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+      var g = $('grille');
+      g.textContent = '';
+      ORDRE.forEach(function (k) {
+        var P = PIECES[k];
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'card';
+        var nom = document.createElement('div');
+        nom.className = 'nom';
+        nom.textContent = P.nom;
+        b.appendChild(nom);
+        if (P.volet) {
+          var v = get('etatVolet');
+          b.appendChild(ligne(v ? (v.n >= 99 ? 'Volet ouvert' : v.n <= 1 ? 'Volet fermé' : 'Volet ' + Math.round(v.n) + ' %') : 'Volet'));
+        }
+        if (P.ip) {
+          var c = null;
+          try { c = localStorage.getItem('court:' + k); } catch (e) {}
+          b.appendChild(ligne(c || 'Chauffage', 'heat'));
+        }
+        if (!P.volet && !P.ip) b.appendChild(ligne('Bientôt', 'vide'));
+        b.addEventListener('click', function () { ouvrir(k); });
+        g.appendChild(b);
+      });
+      $('piece').hidden = true;
+      $('accueil').hidden = false;
+      window.scrollTo(0, 0);
+    }
+
+    /* ---- Page d'une pièce ---- */
+    function load() {
+      cmd = { pow: 1, mode: '4', stemp: 21, rate: 'A', dir: 0 };
+      var s = get('cmd:' + piece);
+      if (s && typeof s.stemp === 'number') cmd = s;
+      cmd.mode = String(cmd.mode);
+      if (cmd.mode === '1' || cmd.mode === '7') cmd.mode = '0';
+      cmd.rate = String(cmd.rate || 'A');
+      cmd.dir = parseInt(cmd.dir, 10) || 0;
+    }
+    function showEtat() {
+      var el = $('etat');
+      var s = get('etat:' + piece);
+      el.hidden = !s;
+      if (s) el.textContent = s.txt + (s.when ? (s.envoi ? ' à ' : ' · lu à ') + s.when : '');
+    }
+    function showVolet() {
+      var v = get('etatVolet');
+      if (!v || typeof v.n !== 'number') return;
+      $('volet-titre').textContent = v.n >= 99 ? 'Volet ouvert' : v.n <= 1 ? 'Volet fermé' : 'Volet ouvert à ' + Math.round(v.n) + ' %';
+      $('volet-sous').textContent = 'Toucher pour ' + (v.n >= 50 ? 'fermer' : 'ouvrir') + (v.when ? ' · lu à ' + v.when : '');
+    }
+    function link(name, text) {
+      return 'shortcuts://x-callback-url/run-shortcut?name=' + encodeURIComponent(name)
+        + '&input=text&text=' + encodeURIComponent(text)
+        + '&x-success=' + back + '&x-cancel=' + back + '&x-error=' + back;
+    }
+    function render() {
+      var ip = PIECES[piece].ip;
+      if (!ip) return;
+      $('cons-val').textContent = cmd.stemp.toFixed(1).replace('.', ',') + ' °C';
+      document.querySelectorAll('[data-pow]').forEach(function (b) {
+        b.setAttribute('aria-pressed', String(String(cmd.pow) === b.getAttribute('data-pow')));
+      });
+      document.querySelectorAll('[data-mode]').forEach(function (b) {
+        b.setAttribute('aria-pressed', String(cmd.mode === b.getAttribute('data-mode')));
+      });
+      document.querySelectorAll('[data-rate]').forEach(function (b) {
+        b.setAttribute('aria-pressed', String(cmd.rate === b.getAttribute('data-rate')));
+      });
+      document.querySelectorAll('[data-dir]').forEach(function (b) {
+        b.setAttribute('aria-pressed', String((cmd.dir & parseInt(b.getAttribute('data-dir'), 10)) !== 0));
+      });
+      var q = 'pow=' + cmd.pow + '&mode=' + cmd.mode + '&stemp=' + cmd.stemp.toFixed(1) + '&shum=0&f_rate=' + cmd.rate + '&f_dir=' + cmd.dir;
+      $('appliquer').href = link('Chauffage régler', 'http://' + ip + '/aircon/set_control_info?' + q);
+      $('lire').href = link('Chauffage état', 'http://' + ip + '/aircon/get_control_info');
+      try { localStorage.setItem('cmd:' + piece, JSON.stringify(cmd)); } catch (e) {}
+    }
+    function ouvrir(k) {
+      piece = k;
+      try { localStorage.setItem('piece', k); } catch (e) {}
+      var P = PIECES[k];
+      $('piece-nom').textContent = P.nom;
+      $('sec-volet').hidden = !P.volet;
+      $('sec-chauffage').hidden = !P.ip;
+      $('sec-vide').hidden = !!(P.volet || P.ip);
+      if (P.volet) showVolet();
+      if (P.ip) { load(); showEtat(); render(); }
+      $('accueil').hidden = true;
+      $('piece').hidden = false;
+      window.scrollTo(0, 0);
+    }
+
+    /* ---- Événements ---- */
+    $('retour').addEventListener('click', accueil);
+    $('moins').addEventListener('click', function () { cmd.stemp = Math.max(16, cmd.stemp - 0.5); render(); });
+    $('plus').addEventListener('click', function () { cmd.stemp = Math.min(30, cmd.stemp + 0.5); render(); });
+    document.querySelectorAll('[data-pow]').forEach(function (b) {
+      b.addEventListener('click', function () { cmd.pow = parseInt(b.getAttribute('data-pow'), 10); render(); });
+    });
+    document.querySelectorAll('[data-mode]').forEach(function (b) {
+      b.addEventListener('click', function () { cmd.mode = b.getAttribute('data-mode'); cmd.pow = 1; render(); });
+    });
+    document.querySelectorAll('[data-rate]').forEach(function (b) {
+      b.addEventListener('click', function () { cmd.rate = b.getAttribute('data-rate'); render(); });
+    });
+    document.querySelectorAll('[data-dir]').forEach(function (b) {
+      b.addEventListener('click', function () { cmd.dir = cmd.dir ^ parseInt(b.getAttribute('data-dir'), 10); render(); });
+    });
+    // Quand on lance un raccourci, on note la pièce pour y revenir au retour.
+    document.addEventListener('click', function (e) {
+      var a = e.target.closest ? e.target.closest('a[href^="shortcuts:"]') : null;
+      if (a) { try { localStorage.setItem('retour', String(Date.now())); } catch (er) {} }
+    }, true);
+
+    /* ---- Démarrage : retour d'un raccourci => la pièce, sinon l'accueil ---- */
+    var retour = 0;
+    try { retour = parseInt(localStorage.getItem('retour'), 10) || 0; localStorage.removeItem('retour'); } catch (e) {}
+    if (retour && Date.now() - retour < 10 * 60 * 1000) ouvrir(piece); else accueil();
   })();
 </script>
 </body>
