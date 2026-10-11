@@ -78,6 +78,8 @@
     <p id="date"></p>
   </header>
   <div id="grille" class="grid"></div>
+  <p id="maj" class="note"></p>
+  <div class="row"><a id="maj-lien" class="btn" href="#">Actualiser tout</a></div>
 </div>
 
 <!-- PAGE D'UNE PIÈCE -->
@@ -101,6 +103,7 @@
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg>
       </a>
     </div>
+    <button type="button" id="inverser" class="chip" hidden>État mémorisé faux ? Inverser</button>
   </section>
 
   <section id="sec-chauffage" aria-labelledby="t-chauffage">
@@ -160,10 +163,15 @@
   })();
 </script>
 <script>
-  // Lit le résultat renvoyé par un raccourci (état du volet ou du chauffage de la pièce ouverte en dernier).
+  // Lit le résultat renvoyé par un raccourci : état d'un volet, d'un chauffage, ou de toute la maison (« État maison »).
   (function () {
     var rates = { 'A': 'auto', 'B': 'silence', '3': '1', '4': '2', '5': '3', '6': '4', '7': '5' };
     var modes = { '0': 'Auto', '1': 'Auto', '2': 'Déshumidification', '3': 'Froid', '4': 'Chauffage', '6': 'Ventilation', '7': 'Auto' };
+    // Format de « État maison » : une ligne « clé:valeur » par appareil.
+    var CLES = {
+      vs: ['volet', 'salon'], vc: ['volet', 'chambre'], vb: ['volet', 'bureau'],
+      cs: ['chauffage', 'salon'], cc: ['chauffage', 'chambre'], cb: ['chauffage', 'bureau']
+    };
     var piece = 'salon';
     try { piece = localStorage.getItem('piece') || 'salon'; } catch (e) {}
 
@@ -174,30 +182,48 @@
 
     function put(key, obj) { try { localStorage.setItem(key, JSON.stringify(obj)); } catch (e) {} }
 
-    if (/^-?\d+([.,]\d+)?$/.test(raw)) {
-      // Résultat du volet : position actuelle (100 = ouvert, 0 = fermé).
-      put('etatVolet:' + piece, { n: parseFloat(raw.replace(',', '.')), when: when });
-    } else {
-      // Résultat du chauffage : texte du Daikin (ret=OK,pow=...,mode=...,stemp=...).
+    function volet(room, txt) {
+      var n = parseFloat(String(txt).replace(',', '.'));
+      if (isNaN(n)) return;
+      put('etatVolet:' + room, { n: n, when: when, t: Date.now() });
+    }
+    // courant = résultat d'une action lancée depuis la pièce ouverte (on y affiche aussi les messages d'envoi ou d'erreur).
+    function chauffage(room, texte, courant) {
       var d = {};
-      raw.split(',').forEach(function (kv) {
+      texte.split(',').forEach(function (kv) {
         var i = kv.indexOf('=');
         if (i > 0) d[kv.slice(0, i).trim()] = kv.slice(i + 1).trim();
       });
       if (d.ret === 'OK' && d.pow === undefined) {
         // Réponse à un réglage envoyé (ret=OK,adv=) : ce n'est pas un état.
-        put('etat:' + piece, { txt: 'Réglage envoyé', when: when, envoi: true });
+        if (courant) put('etat:' + room, { txt: 'Réglage envoyé', when: when, envoi: true });
       } else if (d.ret === 'OK') {
         var st = parseFloat(d.stemp);
         var txt = d.pow === '1'
           ? 'En marche · ' + (modes[d.mode] || 'Mode ' + d.mode) + ' · consigne ' + d.stemp + ' °C' + (rates[d.f_rate] ? ' · ventil. ' + rates[d.f_rate] : '')
           : 'À l’arrêt · dernière consigne ' + d.stemp + ' °C';
-        put('cmd:' + piece, { pow: d.pow === '1' ? 1 : 0, mode: d.mode, stemp: isNaN(st) ? 21 : st, rate: d.f_rate || 'A', dir: parseInt(d.f_dir, 10) || 0 });
-        put('etat:' + piece, { txt: txt, when: when });
-        put('court:' + piece, d.pow === '1' ? 'En marche · ' + (isNaN(st) ? '' : st.toFixed(1).replace('.', ',') + ' °C') : 'À l’arrêt');
-      } else {
-        put('etat:' + piece, { txt: 'Réponse inattendue : ' + raw.slice(0, 80), when: when });
+        put('cmd:' + room, { pow: d.pow === '1' ? 1 : 0, mode: d.mode, stemp: isNaN(st) ? 21 : st, rate: d.f_rate || 'A', dir: parseInt(d.f_dir, 10) || 0 });
+        put('etat:' + room, { txt: txt, when: when });
+        put('court:' + room, d.pow === '1' ? 'En marche · ' + (isNaN(st) ? '' : st.toFixed(1).replace('.', ',') + ' °C') : 'À l’arrêt');
+      } else if (courant) {
+        put('etat:' + room, { txt: 'Réponse inattendue : ' + texte.slice(0, 80), when: when });
       }
+    }
+
+    if (/(^|\n)(vs|vc|vb|cs|cc|cb):/.test(raw)) {
+      raw.split('\n').forEach(function (ligne) {
+        var i = ligne.indexOf(':');
+        if (i < 1) return;
+        var m = CLES[ligne.slice(0, i).trim()];
+        var v = ligne.slice(i + 1).trim();
+        if (!m || !v) return;
+        if (m[0] === 'volet') volet(m[1], v); else chauffage(m[1], v, false);
+      });
+      put('lectureMaison', Date.now());
+    } else if (/^-?\d+([.,]\d+)?$/.test(raw)) {
+      volet(piece, raw);
+    } else {
+      chauffage(piece, raw, true);
     }
     history.replaceState(null, '', location.pathname);
   })();
@@ -207,13 +233,14 @@
   (function () {
     // Une entrée par pièce. ip = adresse du Daikin, volet = volet géré par raccourci.
     var PIECES = {
-      salon:   { nom: 'Salon',   ip: '192.168.1.177', volet: true },
-      chambre: { nom: 'Chambre', ip: '192.168.1.84',  volet: true },
-      bureau:  { nom: 'Bureau',  ip: '192.168.1.38',  volet: true },
+      salon:   { nom: 'Salon',   ip: '192.168.1.177', volet: 'lecture' },
+      chambre: { nom: 'Chambre', ip: '192.168.1.84',  volet: 'lecture' },
+      bureau:  { nom: 'Bureau',  ip: '192.168.1.38',  volet: 'lecture' },
       cellier: { nom: 'Cellier' },
       couloir: { nom: 'Couloir' },
       entree:  { nom: 'Entrée' }
     };
+    // volet 'lecture' : l'état est lu sur l'accessoire. 'memoire' : l'accessoire renvoie toujours 100, la page retient le dernier ordre.
     var ORDRE = ['salon', 'chambre', 'bureau', 'cellier', 'couloir', 'entree'];
     var back = encodeURIComponent(location.origin + location.pathname);
     var piece = 'salon';
@@ -224,6 +251,15 @@
     function get(key) { try { return JSON.parse(localStorage.getItem(key)); } catch (e) { return null; } }
 
     /* ---- Accueil ---- */
+    function ordre(k) { try { return localStorage.getItem('ordreVolet:' + k); } catch (e) { return null; } }
+    function texteVolet(k) {
+      if (PIECES[k].volet === 'memoire') {
+        var o = ordre(k);
+        return o === 'ouvert' ? 'Volet ouvert' : o === 'ferme' ? 'Volet fermé' : 'Volet';
+      }
+      var v = getVolet(k);
+      return v ? (v.n >= 99 ? 'Volet ouvert' : v.n <= 1 ? 'Volet fermé' : 'Volet ' + Math.round(v.n) + ' %') : 'Volet';
+    }
     function ligne(txt, cls) {
       var d = document.createElement('div');
       d.className = 'ligne' + (cls ? ' ' + cls : '');
@@ -232,6 +268,10 @@
     }
     function accueil() {
       $('date').textContent = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+      var lm = 0;
+      try { lm = parseInt(localStorage.getItem('lectureMaison'), 10) || 0; } catch (e) {}
+      $('maj').textContent = lm ? 'Mis à jour à ' + new Date(lm).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : 'État pas encore lu';
+      $('maj-lien').href = lienSimple('État maison');
       var g = $('grille');
       g.textContent = '';
       ORDRE.forEach(function (k) {
@@ -244,13 +284,10 @@
         nom.textContent = P.nom;
         b.appendChild(nom);
         if (P.volet) {
-          var v = getVolet(k);
-          b.appendChild(ligne(v ? (v.n >= 99 ? 'Volet ouvert' : v.n <= 1 ? 'Volet fermé' : 'Volet ' + Math.round(v.n) + ' %') : 'Volet'));
+          b.appendChild(ligne(texteVolet(k)));
         }
         if (P.ip) {
-          var c = null;
-          try { c = localStorage.getItem('court:' + k); } catch (e) {}
-          b.appendChild(ligne(c || 'Chauffage', 'heat'));
+          b.appendChild(ligne(get('court:' + k) || 'Chauffage', 'heat'));
         }
         if (!P.volet && !P.ip) b.appendChild(ligne('Bientôt', 'vide'));
         b.addEventListener('click', function () { ouvrir(k); });
@@ -282,10 +319,20 @@
         + '&x-success=' + back + '&x-cancel=' + back + '&x-error=' + back;
     }
     function showVolet() {
-      var nomVolet = PIECES[piece].nom.toLowerCase();
-      $('btn-volet').href = lienSimple('Volet ' + nomVolet);
-      $('lire-volet').href = lienSimple('État volet ' + nomVolet);
-      $('volet-titre').textContent = 'Volet ' + nomVolet;
+      var nom = PIECES[piece].nom.toLowerCase();
+      var memoire = PIECES[piece].volet === 'memoire';
+      $('inverser').hidden = !memoire;
+      $('lire-volet').hidden = memoire;
+      if (memoire) {
+        var o = ordre(piece);
+        $('btn-volet').href = lienSimple((o === 'ouvert' ? 'Fermer volet ' : 'Ouvrir volet ') + nom);
+        $('volet-titre').textContent = o === 'ouvert' ? 'Volet ouvert' : o === 'ferme' ? 'Volet fermé' : 'Volet ' + nom;
+        $('volet-sous').textContent = o ? 'Dernier ordre · toucher pour ' + (o === 'ouvert' ? 'fermer' : 'ouvrir') : 'Toucher pour ouvrir';
+        return;
+      }
+      $('btn-volet').href = lienSimple('Volet ' + nom);
+      $('lire-volet').href = lienSimple('État volet ' + nom);
+      $('volet-titre').textContent = 'Volet ' + nom;
       $('volet-sous').textContent = 'Toucher pour ouvrir ou fermer';
       var v = getVolet(piece);
       if (!v || typeof v.n !== 'number') return;
@@ -318,6 +365,15 @@
       $('lire').href = link('Chauffage état', 'http://' + ip + '/aircon/get_control_info');
       try { localStorage.setItem('cmd:' + piece, JSON.stringify(cmd)); } catch (e) {}
     }
+    // Lecture de toute la maison par le raccourci « État maison » (au plus une fois toutes les 30 s).
+    // Au retour, la page rouvre l'accueil sans relancer la lecture : pas de boucle.
+    function lectureGlobale() {
+      var lm = 0;
+      try { lm = parseInt(localStorage.getItem('lectureMaison'), 10) || 0; } catch (e) {}
+      if (Date.now() - lm < 30000) return;
+      try { localStorage.setItem('retour', String(Date.now())); localStorage.setItem('retourVue', 'accueil'); } catch (e) {}
+      setTimeout(function () { location.href = lienSimple('État maison'); }, 150);
+    }
     function ouvrir(k) {
       piece = k;
       try { localStorage.setItem('piece', k); } catch (e) {}
@@ -335,6 +391,14 @@
 
     /* ---- Événements ---- */
     $('retour').addEventListener('click', accueil);
+    $('btn-volet').addEventListener('click', function () {
+      if (PIECES[piece].volet !== 'memoire') return;
+      try { localStorage.setItem('ordreVolet:' + piece, ordre(piece) === 'ouvert' ? 'ferme' : 'ouvert'); } catch (e) {}
+    });
+    $('inverser').addEventListener('click', function () {
+      try { localStorage.setItem('ordreVolet:' + piece, ordre(piece) === 'ouvert' ? 'ferme' : 'ouvert'); } catch (e) {}
+      showVolet();
+    });
     $('moins').addEventListener('click', function () { cmd.stemp = Math.max(16, cmd.stemp - 0.5); render(); });
     $('plus').addEventListener('click', function () { cmd.stemp = Math.min(30, cmd.stemp + 0.5); render(); });
     document.querySelectorAll('[data-pow]').forEach(function (b) {
@@ -352,13 +416,23 @@
     // Quand on lance un raccourci, on note la pièce pour y revenir au retour.
     document.addEventListener('click', function (e) {
       var a = e.target.closest ? e.target.closest('a[href^="shortcuts:"]') : null;
-      if (a) { try { localStorage.setItem('retour', String(Date.now())); } catch (er) {} }
+      if (a) { try { localStorage.setItem('retour', String(Date.now())); localStorage.setItem('retourVue', a.id === 'maj-lien' ? 'accueil' : 'piece'); } catch (er) {} }
     }, true);
 
     /* ---- Démarrage : retour d'un raccourci => la pièce, sinon l'accueil ---- */
-    var retour = 0;
-    try { retour = parseInt(localStorage.getItem('retour'), 10) || 0; localStorage.removeItem('retour'); } catch (e) {}
-    if (retour && Date.now() - retour < 10 * 60 * 1000) ouvrir(piece); else accueil();
+    var retour = 0, vue = 'piece';
+    try {
+      retour = parseInt(localStorage.getItem('retour'), 10) || 0;
+      vue = localStorage.getItem('retourVue') || 'piece';
+      localStorage.removeItem('retour');
+      localStorage.removeItem('retourVue');
+    } catch (e) {}
+    if (retour && Date.now() - retour < 10 * 60 * 1000) {
+      if (vue === 'accueil') accueil(); else ouvrir(piece);
+    } else {
+      accueil();
+      lectureGlobale();
+    }
   })();
 </script>
 </body>
