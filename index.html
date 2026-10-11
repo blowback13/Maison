@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Maison">
+<meta name="theme-color" content="#0F1419">
+<title>Maison</title>
+<style>
+  :root {
+    --bg: #0F1419;
+    --card: #1A2129;
+    --text: #E8ECEF;
+    --muted: #9AA7B2;
+    --line: #2E3A45;
+    --accent: #F5B544;
+    --heat: #FF9B6A;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    min-height: 100vh;
+    padding: calc(28px + env(safe-area-inset-top)) 20px calc(24px + env(safe-area-inset-bottom));
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  header { display: flex; flex-direction: column; gap: 4px; margin-bottom: 4px; }
+  h1 { margin: 0; font-size: 34px; font-weight: 800; letter-spacing: -0.02em; }
+  header p { margin: 0; font-size: 15px; color: var(--muted); }
+  section { background: var(--card); border-radius: 20px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+  h2 { margin: 0; font-size: 13px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  .row { display: flex; gap: 10px; }
+  a.btn {
+    flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px;
+    min-height: 56px; padding: 0 12px; border-radius: 16px;
+    border: 1px solid var(--line); color: var(--text); background: transparent;
+    font-size: 16px; font-weight: 700; text-decoration: none; text-align: center;
+  }
+  a.btn:active { transform: scale(0.97); opacity: 0.85; }
+  a.btn.primary { background: var(--accent); border-color: var(--accent); color: #1A1405; }
+  a.btn.heat { background: var(--heat); border-color: var(--heat); color: #1A0D05; }
+  a.btn svg { flex: none; }
+  .note { font-size: 13px; color: var(--muted); margin: 0; line-height: 1.4; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Salon</h1>
+  <p>Volet et chauffage</p>
+</header>
+
+<section aria-labelledby="t-volet">
+  <h2 id="t-volet">Volet</h2>
+  <div class="row">
+    <a class="btn primary" href="shortcuts://run-shortcut?name=Ouvrir%20volet%20salon">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg>
+      Ouvrir
+    </a>
+    <a class="btn" href="shortcuts://run-shortcut?name=Fermer%20volet%20salon">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+      Fermer
+    </a>
+  </div>
+</section>
+
+<section aria-labelledby="t-chauffage">
+  <h2 id="t-chauffage">Chauffage</h2>
+  <div class="row">
+    <a class="btn heat" href="shortcuts://run-shortcut?name=Chauffage%2021">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 14.8V5a2 2 0 0 0-4 0v9.8a4 4 0 1 0 4 0z"/></svg>
+      21 °C
+    </a>
+    <a class="btn" href="shortcuts://run-shortcut?name=Chauffage%20arr%C3%AAt">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v9"/><path d="M6.3 7.5a8 8 0 1 0 11.4 0"/></svg>
+      Arrêt
+    </a>
+  </div>
+  <div class="row">
+    <a class="btn" href="shortcuts://run-shortcut?name=Chauffage%20%C3%A9tat">Voir l’état</a>
+  </div>
+  <p class="note">Chaque bouton lance un raccourci de l’app Raccourcis. La première fois, iOS demande de confirmer l’ouverture.</p>
+</section>
+
+</body>
+</html>
