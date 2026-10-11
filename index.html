@@ -84,5 +84,15 @@
   <p class="note">Chaque bouton lance un raccourci de l’app Raccourcis. La première fois, iOS demande de confirmer l’ouverture.</p>
 </section>
 
+<script>
+  // Après l'exécution d'un raccourci, Raccourcis rouvre automatiquement cette page.
+  (function () {
+    var back = encodeURIComponent(location.href.split('#')[0]);
+    document.querySelectorAll('a[href^="shortcuts://run-shortcut"]').forEach(function (a) {
+      a.href = a.getAttribute('href').replace('shortcuts://run-shortcut', 'shortcuts://x-callback-url/run-shortcut')
+        + '&x-success=' + back + '&x-cancel=' + back + '&x-error=' + back;
+    });
+  })();
+</script>
 </body>
 </html>
