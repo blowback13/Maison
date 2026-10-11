@@ -42,6 +42,9 @@
   a.btn.primary { background: var(--accent); border-color: var(--accent); color: #1A1405; }
   a.btn.heat { background: var(--heat); border-color: var(--heat); color: #1A0D05; }
   a.btn svg { flex: none; }
+  a.btn.big { flex-direction: column; gap: 2px; min-height: 72px; font-size: 20px; }
+  a.btn.big .sous { font-size: 13px; font-weight: 600; opacity: 0.75; }
+  a.btn.refresh { flex: none; width: 56px; min-height: 72px; padding: 0; }
   .note { font-size: 13px; color: var(--muted); margin: 0; line-height: 1.4; }
   .etat { margin: 0; padding: 12px 14px; border-radius: 14px; background: var(--bg); font-size: 15px; font-weight: 600; line-height: 1.4; }
 </style>
@@ -56,13 +59,12 @@
 <section aria-labelledby="t-volet">
   <h2 id="t-volet">Volet</h2>
   <div class="row">
-    <a class="btn primary" href="shortcuts://run-shortcut?name=Ouvrir%20volet%20salon">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg>
-      Ouvrir
+    <a id="btn-volet" class="btn primary big" href="shortcuts://run-shortcut?name=Volet%20salon">
+      <span id="volet-titre">Volet salon</span>
+      <span id="volet-sous" class="sous">Toucher pour ouvrir ou fermer</span>
     </a>
-    <a class="btn" href="shortcuts://run-shortcut?name=Fermer%20volet%20salon">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
-      Fermer
+    <a class="btn refresh" aria-label="Actualiser l’état du volet" href="shortcuts://run-shortcut?name=%C3%89tat%20volet%20salon">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg>
     </a>
   </div>
 </section>
@@ -97,38 +99,69 @@
   })();
 </script>
 <script>
-  // Affiche l'état du chauffage renvoyé par le raccourci « Chauffage état ».
+  // Affiche l'état du volet et du chauffage renvoyés par les raccourcis « État volet salon » et « Chauffage état ».
   (function () {
-    var el = document.getElementById('etat');
     var modes = { '0': 'Auto', '1': 'Auto', '2': 'Déshumidification', '3': 'Froid', '4': 'Chauffage', '6': 'Ventilation', '7': 'Auto' };
-    function show(txt, when) {
+
+    function showVolet(n, when) {
+      var t = document.getElementById('volet-titre');
+      var s = document.getElementById('volet-sous');
+      if (!t || !s) return;
+      var ouvert = n >= 50;
+      t.textContent = n >= 99 ? 'Volet ouvert' : n <= 1 ? 'Volet fermé' : 'Volet ouvert à ' + Math.round(n) + ' %';
+      s.textContent = 'Toucher pour ' + (ouvert ? 'fermer' : 'ouvrir') + (when ? ' · lu à ' + when : '');
+    }
+    function show(id, txt, when) {
+      var el = document.getElementById(id);
+      if (!el) return;
       el.hidden = false;
       el.textContent = txt + (when ? ' · lu à ' + when : '');
     }
+    function save(key, txt, when) {
+      try { localStorage.setItem(key, JSON.stringify({ txt: txt, when: when })); } catch (e) {}
+    }
+    function restore(key, id) {
+      try {
+        var s = JSON.parse(localStorage.getItem(key));
+        if (s) show(id, s.txt, s.when);
+      } catch (e) {}
+    }
+
+    // On réaffiche d'abord les derniers états connus.
+    try {
+      var sv = JSON.parse(localStorage.getItem('etatVolet'));
+      if (sv && typeof sv.n === 'number') showVolet(sv.n, sv.when);
+    } catch (e) {}
+    restore('etat', 'etat');
+
     var raw = new URLSearchParams(location.search).get('result');
-    if (raw) {
+    if (!raw) return;
+    raw = raw.trim();
+    var when = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
+    if (/^-?\d+([.,]\d+)?$/.test(raw)) {
+      // Résultat du volet : position actuelle (100 = ouvert, 0 = fermé).
+      var n = parseFloat(raw.replace(',', '.'));
+      try { localStorage.setItem('etatVolet', JSON.stringify({ n: n, when: when })); } catch (e) {}
+      showVolet(n, when);
+    } else {
+      // Résultat du chauffage : texte du Daikin (ret=OK,pow=...,mode=...,stemp=...).
       var d = {};
       raw.split(',').forEach(function (kv) {
         var i = kv.indexOf('=');
         if (i > 0) d[kv.slice(0, i).trim()] = kv.slice(i + 1).trim();
       });
       if (d.ret === 'OK') {
-        var when = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-        var txt = d.pow === '1'
+        var txtC = d.pow === '1'
           ? 'En marche · ' + (modes[d.mode] || 'Mode ' + d.mode) + ' · consigne ' + d.stemp + ' °C'
           : 'À l’arrêt · dernière consigne ' + d.stemp + ' °C';
-        try { localStorage.setItem('etat', JSON.stringify({ txt: txt, when: when })); } catch (e) {}
-        show(txt, when);
+        save('etat', txtC, when);
+        show('etat', txtC, when);
       } else {
-        show('Réponse inattendue : ' + raw.slice(0, 80));
+        show('etat', 'Réponse inattendue : ' + raw.slice(0, 80));
       }
-      history.replaceState(null, '', location.pathname);
-    } else {
-      try {
-        var s = JSON.parse(localStorage.getItem('etat'));
-        if (s) show(s.txt, s.when);
-      } catch (e) {}
     }
+    history.replaceState(null, '', location.pathname);
   })();
 </script>
 </body>
